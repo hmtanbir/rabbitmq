@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.*
+docker-compose.yml
+docker-compose.override.yml
+*.md
+*.key
+*.pem
+*.crt
+*.p12
+LICENSE
+.mimocode

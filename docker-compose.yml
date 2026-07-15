@@ -1,0 +1,42 @@
+services:
+  rabbitmq:
+    image: hmtanbir/rabbitmq:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    env_file:
+      - .env
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+    # --- Security hardening ---
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/rabbitmq
+
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  rabbitmq_data:
+    driver: local
