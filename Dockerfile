@@ -135,7 +135,7 @@ HEALTHCHECK --interval=3600s --timeout=10s --start-period=60s --retries=3 \
 # (25672 Erlang distribution and 4369 EPMD are internal-only, not exposed)
 EXPOSE 5672 15672
 
-USER rabbitmq
+USER 999
 WORKDIR /var/lib/rabbitmq
 
 ENTRYPOINT ["rabbitmq-server"]
