@@ -128,7 +128,7 @@ ENV PATH=/usr/lib/rabbitmq/sbin:/usr/lib/erlang/bin:/usr/local/sbin:/usr/local/b
     RABBITMQ_SASL_LOGS=- \
     RABBITMQ_CONF_ENV_FILE=/etc/rabbitmq/rabbitmq-env.conf
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=3600s --timeout=10s --start-period=60s --retries=3 \
     CMD rabbitmq-diagnostics check_port_connectivity && rabbitmq-diagnostics check_running && rabbitmq-diagnostics check_local_alarms || exit 1
 
 # Expose AMQP and Management ports
