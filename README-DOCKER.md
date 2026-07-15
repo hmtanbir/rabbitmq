@@ -15,29 +15,68 @@ A maximum-hardened, production-grade RabbitMQ container image based on **Alpine 
 ```yaml
 services:
   rabbitmq:
-    image: yourusername/rabbitmq:latest
+    image: hmtanbir/rabbitmq:latest
     container_name: rabbitmq
     ports:
       - "127.0.0.1:5672:5672"
       - "127.0.0.1:15672:15672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=admin
-      - RABBITMQ_DEFAULT_PASS=securepassword123
-      - RABBITMQ_ERLANG_COOKIE=securecookie456
+    environments:
+      - RABBITMQ_DEFAULT_USER: guest
+      - RABBITMQ_DEFAULT_PASS: guest
+      - RABBITMQ_ERLANG_COOKIE: securecookie456
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+    # --- Security hardening ---
     read_only: true
     tmpfs:
       - /tmp
       - /var/run/rabbitmq
+
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
-    restart: unless-stopped
+
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   rabbitmq_data:
+    driver: local
+
+```
+
+## Quick Start (Docker CLI)
+
+You can run the hardened RabbitMQ container directly using the `docker run` command:
+
+```bash
+docker run -d \
+  --name rabbitmq \
+  -p 127.0.0.1:5672:5672 \
+  -p 127.0.0.1:15672:15672 \
+  -e RABBITMQ_DEFAULT_USER=guest \
+  -e RABBITMQ_DEFAULT_PASS=guest \
+  -e RABBITMQ_ERLANG_COOKIE=securecookie456 \
+  -v rabbitmq_data:/var/lib/rabbitmq \
+  --read-only \
+  --tmpfs /tmp \
+  --tmpfs /var/run/rabbitmq \
+  --cap-drop=ALL \
+  --security-opt no-new-privileges:true \
+  --restart unless-stopped \
+  hmtanbir/rabbitmq:latest
 ```
 
 ## Supported Environment Variables

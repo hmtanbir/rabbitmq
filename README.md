@@ -27,7 +27,7 @@ This repository contains a production-ready, maximum-hardened configuration for 
 ### Running locally
 1. Create a `.env` file in the root directory (make sure not to commit this file):
    ```env
-   RABBITMQ_DEFAULT_USER=admin
+   RABBITMQ_DEFAULT_USER=guest
    RABBITMQ_DEFAULT_PASS=securepassword123
    RABBITMQ_ERLANG_COOKIE=securecookie456
    ```
