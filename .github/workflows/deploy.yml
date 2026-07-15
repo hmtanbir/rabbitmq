@@ -11,6 +11,7 @@ jobs:
     env:
       IMAGE_NAME: rabbitmq
       IMAGE_TAG: 4.3.2
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
