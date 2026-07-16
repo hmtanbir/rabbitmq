@@ -21,9 +21,47 @@ RUN set -euo pipefail \
     && mv /rabbitmq_server-${RABBITMQ_VERSION} /rabbitmq \
     && rm /tmp/rabbitmq.tar.xz
 
-# Remove unnecessary documentation and sources to optimize size
+# Remove documentation, sources, and unused RabbitMQ plugins (4.x stores plugins as directories, not .ez)
+# Only remove clearly optional protocol/feature plugins — keep all core deps and transitive deps
 RUN rm -rf /rabbitmq/share \
-    && rm -rf /rabbitmq/LICENSE* /rabbitmq/INSTALL
+    && rm -rf /rabbitmq/LICENSE* /rabbitmq/INSTALL \
+    && rm -rf /rabbitmq/plugins/rabbitmq_aws-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_auth_backend_ldap-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_auth_mechanism_gssapi-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_auth_mechanism_plain-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_federation-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_federation_management-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_federation_common-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_federation_prometheus-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_exchange_federation-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_queue_federation-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_shovel-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_shovel_management-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_shovel_prometheus-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_stomp-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_web_stomp-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_web_stomp_examples-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_web_mqtt-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_web_mqtt_examples-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_mqtt-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_stream-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_stream_common-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_stream_management-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_peer_discovery_aws-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_peer_discovery_common-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_peer_discovery_consul-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_peer_discovery_etcd-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_peer_discovery_k8s-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_topology_migration-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_trust_store-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_jms_topic_exchange-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_sharding-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_tracing-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_top-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_random_exchange-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_recent_history_exchange-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_consistent_hash_exchange-* \
+    && rm -rf /rabbitmq/plugins/rabbitmq_event_exchange-*
 
 # Step 2: Use standard Alpine to install Erlang and extract dependencies
 FROM alpine:3.20 AS alpine-builder
@@ -38,10 +76,40 @@ RUN apk add --no-cache \
 
 # Create a clean staging directory for Erlang and libraries
 RUN mkdir -p /staging/usr/bin /staging/usr/lib /staging/lib /staging/bin
-RUN cp -R /usr/lib/erlang /staging/usr/lib/
+
+# Copy Erlang runtime (lib + bin) but skip docs, examples, and test suites
+RUN cp -R /usr/lib/erlang /staging/usr/lib/ \
+    && rm -rf /staging/usr/lib/erlang/doc \
+    && rm -rf /staging/usr/lib/erlang/examples \
+    && rm -rf /staging/usr/lib/erlang/usr \
+    && rm -rf /staging/usr/lib/erlang/misc \
+    && rm -rf /staging/usr/lib/erlang/lib/*/src \
+    && rm -rf /staging/usr/lib/erlang/lib/*/test \
+    && rm -rf /staging/usr/lib/erlang/lib/*/doc \
+    && rm -rf /staging/usr/lib/erlang/lib/*/ebin/*.beamc
+
+# Remove unused Erlang OTP applications not required by RabbitMQ
+# KEEP: mnesia (core DB), xmerl (SSL cert parsing), inets (management HTTP), ssl, crypto, asn1, public_key, sasl, stdlib, kernel, runtime_tools, compiler, syntax_tools, parsetools (yecc/leex runtime parsers)
+RUN rm -rf /staging/usr/lib/erlang/lib/j_interface-* \
+    && rm -rf /staging/usr/lib/erlang/lib/odbc-* \
+    && rm -rf /staging/usr/lib/erlang/lib/megaco-* \
+    && rm -rf /staging/usr/lib/erlang/lib/tftp-* \
+    && rm -rf /staging/usr/lib/erlang/lib/wx-* \
+    && rm -rf /staging/usr/lib/erlang/lib/observer-* \
+    && rm -rf /staging/usr/lib/erlang/lib/debugger-* \
+    && rm -rf /staging/usr/lib/erlang/lib/et-* \
+    && rm -rf /staging/usr/lib/erlang/lib/snmp-* \
+    && rm -rf /staging/usr/lib/erlang/lib/eldap-* \
+    && rm -rf /staging/usr/lib/erlang/lib/ftp-*
+
 RUN cp /usr/bin/erl /usr/bin/erlc /staging/usr/bin/
 RUN cp -d /lib/libcrypto* /lib/libssl* /lib/libz* /staging/lib/
 RUN cp -d /usr/lib/libcrypto* /usr/lib/libssl* /usr/lib/libncurses* /usr/lib/libstdc++* /usr/lib/libgcc_s* /staging/usr/lib/
+
+# Strip debug symbols from binaries and shared libraries
+RUN find /staging/usr/lib/erlang/bin -type f -executable -exec strip --strip-unneeded {} + 2>/dev/null || true \
+    && find /staging/lib -name '*.so*' -exec strip --strip-unneeded {} + 2>/dev/null || true \
+    && find /staging/usr/lib -name '*.so*' -exec strip --strip-unneeded {} + 2>/dev/null || true
 
 # Compile a shell wrapper that blocks interactive shell execution (when argc <= 1)
 # but allows script execution by forwarding to /bin/real_sh.
@@ -59,8 +127,12 @@ RUN ln -s /bin/busybox /staging/bin/real_sh \
     && gcc -O2 /tmp/wrapper.c -o /staging/bin/sh \
     && cp /staging/bin/sh /staging/bin/ash
 
-# Step 3: Combine everything on top of the hardened Alpine base
-FROM dhi.io/alpine-base:3.24 AS combiner
+# Step 3: Final hardened Alpine image (merged — no separate combiner stage)
+FROM dhi.io/alpine-base:3.24
+
+LABEL maintainer="hmtanbir" \
+      version="4.3.2" \
+      description="Hardened RabbitMQ server with shell access disabled"
 
 USER 0
 
@@ -75,7 +147,7 @@ RUN addgroup -g 999 rabbitmq && \
 RUN rm -f /bin/bash /usr/bin/bash || true
 
 # Set up required directories with restrictive permissions
-RUN mkdir -p /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq /var/run/rabbitmq \
+RUN mkdir -p /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq /var/run/rabbitmq /var/lib/rabbitmq/mnesia \
     && chown -R rabbitmq:rabbitmq /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq /var/run/rabbitmq \
     && chmod 700 /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq /var/run/rabbitmq
 
@@ -103,23 +175,6 @@ RUN printf '[rabbitmq_management,rabbitmq_management_agent].\n' > /etc/rabbitmq/
 RUN printf 'SYS_PREFIX=\n' > /etc/rabbitmq/rabbitmq-env.conf \
     && chown 0:0 /etc/rabbitmq/rabbitmq-env.conf \
     && chmod 644 /etc/rabbitmq/rabbitmq-env.conf
-
-# Step 4: Build the final hardened Alpine image
-FROM dhi.io/alpine-base:3.24
-
-LABEL maintainer="hmtanbir" \
-      version="4.3.2" \
-      description="Hardened RabbitMQ server with shell access disabled"
-
-# Copy everything from combiner to keep it pristine and minimal
-COPY --from=combiner / /
-
-USER 0
-
-# Ensure directory permissions are correctly preserved for rabbitmq user in the final image layer
-RUN mkdir -p /var/lib/rabbitmq/mnesia \
-    && chown -R 999:999 /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq /var/run/rabbitmq \
-    && chmod 700 /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq /var/run/rabbitmq
 
 # Define environment variables
 ENV PATH=/usr/lib/rabbitmq/sbin:/usr/lib/erlang/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
