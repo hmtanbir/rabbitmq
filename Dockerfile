@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Set RabbitMQ version to download
-ARG RABBITMQ_VERSION=4.3.2
+ARG RABBITMQ_VERSION=4.3.5
 
 # Download, verify, and extract the generic UNIX binary release
 ARG RABBITMQ_SHA256=881cbdd22231c3879e45a58d79a83d69c6604d0e291ff6dec2d9e7ab649b119e
@@ -131,7 +131,7 @@ RUN ln -s /bin/busybox /staging/bin/real_sh \
 FROM dhi.io/alpine-base:3.24
 
 LABEL maintainer="hmtanbir" \
-      version="4.3.2" \
+      version="4.3.5" \
       description="Hardened RabbitMQ server with shell access disabled"
 
 USER 0
