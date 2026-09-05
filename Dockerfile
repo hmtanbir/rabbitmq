@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG RABBITMQ_VERSION=4.3.5
 
 # Download, verify, and extract the generic UNIX binary release
-ARG RABBITMQ_SHA256=881cbdd22231c3879e45a58d79a83d69c6604d0e291ff6dec2d9e7ab649b119e
+ARG RABBITMQ_SHA256=0b961bc6ae544c6a3411e7f1616bc2eb2dc5cc4f70a03b2131a19f9e833dbd5e
 RUN set -euo pipefail \
     && curl -fSL "https://github.com/rabbitmq/rabbitmq-server/releases/download/v${RABBITMQ_VERSION}/rabbitmq-server-generic-unix-${RABBITMQ_VERSION}.tar.xz" -o /tmp/rabbitmq.tar.xz \
     && echo "${RABBITMQ_SHA256}  /tmp/rabbitmq.tar.xz" | sha256sum -c - \
