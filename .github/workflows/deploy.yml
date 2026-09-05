@@ -10,7 +10,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
       IMAGE_NAME: rabbitmq
-      IMAGE_TAG: 4.4.1
+      IMAGE_TAG: 4.3.5
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
     steps:
       - name: Checkout repository
